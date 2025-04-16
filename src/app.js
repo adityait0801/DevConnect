@@ -44,13 +44,13 @@ app.post("/login", async (req, res) => {
     const { emailID, password } = req.body;
 
     const user = await User.findOne({ emailID: emailID });
-    console.log(user);
+    // console.log(user);
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await user.validatePassword(password);
 
     if (isPasswordValid) {
 
-      const token = await jwt.sign({_id : user._id}, "DevTinder1*", {expiresIn : "7d"});
+      const token = await user.getJWT();
       res.cookie("token", token);
       res.send("Login Successful !!");
     } else {
