@@ -1,13 +1,17 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const { Schema } = require("mongoose");
+const jwt = require("jsonwebtoken");
+const cookieParser = require('cookie-parser');
 
 const connectDB = require("./config/database");
 const User = require("./models/user");
+const userAuth = require("./middlewares/auth");
 
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 app.get("/user", async (req, res) => {
   const emailID = req.body.email;
@@ -42,9 +46,12 @@ app.post("/login", async (req, res) => {
     const user = await User.findOne({ emailID: emailID });
     console.log(user);
 
-    const isPasswordValid = bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (isPasswordValid) {
+
+      const token = await jwt.sign({_id : user._id}, "DevTinder1*", {expiresIn : "7d"});
+      res.cookie("token", token);
       res.send("Login Successful !!");
     } else {
       throw new Error("Invalid Credentials !!");
@@ -54,55 +61,12 @@ app.post("/login", async (req, res) => {
   }
 });
 
-app.get("/feed", async (req, res) => {
+app.get("/feed", userAuth, async (req, res) => {
   try {
     const users = await User.find({});
     res.status(200).send(users);
   } catch (error) {
     res.status(404).send("Something went Wrong");
-  }
-});
-
-app.delete("/user", async (req, res) => {
-  const userID = req.body.userID;
-  // console.log(userID);
-
-  try {
-    const user = await User.findByIdAndDelete(userID);
-    res.send("User Deleted");
-  } catch (error) {
-    res.status(404).send("Something went Wrong");
-  }
-});
-
-app.patch("/user", async (req, res) => {
-  const userID = req.body.userID;
-  // console.log(userID);
-  const data = req.body;
-
-  try {
-    const Allowed_Updates = [
-      "firstName",
-      "lastName",
-      "gender",
-      "age",
-      "skills",
-    ];
-
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-      Allowed_Updates.includes(k)
-    );
-
-    if (!isUpdateAllowed) {
-      throw new Error("Update not Allowed !!");
-    }
-
-    const user = await User.findByIdAndUpdate(userID, data, {
-      runValidators: true,
-    });
-    res.send("User Updated");
-  } catch (error) {
-    res.status(400).send("Update not Allowed !!");
   }
 });
 
